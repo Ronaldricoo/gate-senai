@@ -1,11 +1,13 @@
 import sqlite3
+import os  # <--- ESSENCIAL: Adicione esta linha!
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 
+# Configuração do caminho do banco de dados para o Render
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE = os.path.join(BASE_DIR, 'database.db')
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Gera uma chave segura para o servidor online
+app.secret_key = os.urandom(24) # Gera uma chave segura para o servidor online
 
 DATABASE = 'database.db'
 
