@@ -9,10 +9,10 @@ DATABASE = os.path.join(BASE_DIR, 'database.db')
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# 2. FUNÇÕES DO BANCO DE DADOS
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row  # Permite acessar colunas pelo nome: user['nome']
+    # Adicionamos timeout para o banco não travar no Render
+    conn = sqlite3.connect(DATABASE, timeout=10)
+    conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
