@@ -1,6 +1,8 @@
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-import os
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DATABASE = os.path.join(BASE_DIR, 'database.db')
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Gera uma chave segura para o servidor online
