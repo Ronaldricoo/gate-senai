@@ -68,15 +68,27 @@ def gerenciar_usuarios():
 
 @app.route('/cadastrar_usuario', methods=['POST'])
 def cadastrar_usuario():
-    if session.get('role') != 'admin': return "Negado", 403
+    if session.get('role') != 'admin': 
+        return "Negado", 403
+    
+    user_id = request.form.get('user_id')
+    nome = request.form.get('nome')
+    senha = request.form.get('senha')
+    tag = request.form.get('tag', '').upper()
+
+    if not user_id or not senha:
+        return "Erro: Usuário e senha são obrigatórios. <a href='/usuarios'>Voltar</a>"
+
     with get_db() as db:
         try:
             db.execute("INSERT INTO usuarios (id, nome, senha, tag, role) VALUES (?, ?, ?, ?, 'professor')",
-                       (request.form.get('user_id'), request.form.get('nome'), 
-                        request.form.get('senha'), request.form.get('tag').upper()))
+                       (user_id, nome, senha, tag))
             db.commit()
         except sqlite3.IntegrityError:
             return "Erro: Este ID de usuário já existe. <a href='/usuarios'>Voltar</a>"
+        except Exception as e:
+            return f"Erro inesperado: {str(e)}. <a href='/usuarios'>Voltar</a>"
+            
     return redirect(url_for('gerenciar_usuarios'))
 
 @app.route('/solicitar')
