@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><title>Painel de Aprovação</title></head>
+<body>
+    <h2>Solicitações Pendentes</h2>
+    <table border="1">
+        <tr>
+            <th>Professor</th>
+            <th>Lab</th>
+            <th>Data/Período</th>
+            <th>Status</th>
+            <th>Ações</th>
+        </tr>
+        {% for s in solicitacoes %}
+        <tr>
+            <td>{{ s.professor_nome }}</td>
+            <td>{{ s.lab }}</td>
+            <td>{{ s.data }} - {{ s.periodo }}</td>
+            <td><b>{{ s.status }}</b></td>
+            <td>
+                <a href="/decisao/{{ s.id }}/Aprovado">Aprovar</a> |
+                <a href="/decisao/{{ s.id }}/Reprovado">Reprovar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <a href="/">Voltar para Solicitação</a>
+    <div style="text-align: right;">
+    <a href="/logout">Sair do Sistema</a>
+
+    <nav>
+    <b>Painel Administrativo</b> |
+    <a href="/usuarios">👥 Gerenciar Professores/Tags</a> |
+    <a href="/logout">Sair</a>
+</nav>
+<hr>
+</div>
+</body>
+</html>

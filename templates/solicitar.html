@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head><title>Solicitar Lab</title></head>
+<body>
+    <h2>Olá, Professor {{ nome }} (Tag: {{ tag }})</h2>
+    <form action="/enviar_solicitacao" method="post">
+        Laboratório:
+        <select name="lab">
+            {% for lab in labs %}
+                <option value="{{ lab }}">{{ lab }}</option>
+            {% endfor %}
+        </select><br><br>
+        Data: <input type="date" name="data" required><br><br>
+        Período:
+        <select name="periodo">
+            <option value="Manhã">Manhã</option>
+            <option value="Tarde">Tarde</option>
+            <option value="Noite">Noite</option>
+        </select><br><br>
+        <button type="submit">Enviar Solicitação</button>
+    </form>
+    <br><a href="/logout">Sair</a>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head><title>Gerenciar Usuários</title></head>
+<body>
+    <h2>Gerenciamento de Professores e TAGs</h2>
+    <a href="/admin">🔙 Voltar para Aprovações</a> | <a href="/logout">Sair</a>
+    <hr>
+
+    <h3>Cadastrar Novo Professor</h3>
+    <form action="/cadastrar_usuario" method="post">
+        Login: <input type="text" name="user_id" placeholder="ex: ronaldo" required>
+        Nome: <input type="text" name="nome" placeholder="Nome Completo" required>
+        Senha: <input type="password" name="senha" required>
+        TAG: <input type="text" name="tag" placeholder="ID da Tag" required>
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <hr>
+    <h3>Usuários Cadastrados</h3>
+    <table border="1">
+        <tr>
+            <th>Login</th>
+            <th>Nome</th>
+            <th>TAG</th>
+            <th>Nível</th>
+            <th>Ação</th>
+        </tr>
+        {% for id, dados in usuarios.items() %}
+        <tr>
+            <td>{{ id }}</td>
+            <td>{{ dados.nome }}</td>
+            <td><code>{{ dados.tag }}</code></td>
+            <td>{{ dados.role }}</td>
+            <td>
+                {% if id != 'admin' %}
+                    <a href="/excluir_usuario/{{ id }}" onclick="return confirm('Excluir professor?')">🗑️ Excluir</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
