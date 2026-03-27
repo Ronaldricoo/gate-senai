@@ -1,42 +1,33 @@
-import sqlite3
 import os
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-
-# 1. CONFIGURAÇÃO DE CAMINHOS PARA O RENDER
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATABASE = os.path.join(BASE_DIR, 'database.db')
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 app = Flask(__name__)
-# Usamos uma chave fixa para evitar deslogar toda vez que o Render reiniciar
-app.secret_key = 'chave_mestra_senai_9168' 
+# Chave fixa para manter você logado mesmo se o Render reiniciar
+app.secret_key = 'chave_mestra_senai_9168'
 
-# 2. FUNÇÕES DO BANCO DE DADOS
-def get_db():
-    conn = sqlite3.connect(DATABASE, timeout=10)
-    conn.row_factory = sqlite3.Row 
-    return conn
+# --- CONFIGURAÇÃO DO MONGODB ---
+# Lembre-se de trocar <db_password> pela sua senha real!
+MONGO_URI = "mongodb+srv://ronald:<db_password>@gate.cof2msq.mongodb.net/?appName=gate"
+client = MongoClient(MONGO_URI)
+db = client['gate_senai'] # Nome do banco de dados no Atlas
 
-def init_db():
-    with get_db() as db:
-        # Tabela de Usuários
-        db.execute('''CREATE TABLE IF NOT EXISTS usuarios 
-            (id TEXT PRIMARY KEY, senha TEXT, role TEXT, nome TEXT, tag TEXT)''')
-        
-        # Tabela de Solicitações
-        db.execute('''CREATE TABLE IF NOT EXISTS solicitacoes 
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, professor_tag TEXT, professor_nome TEXT, lab TEXT, data TEXT, periodo TEXT, status TEXT)''')
-        
-        # Garante que o admin SEMPRE exista (login: admin / senha: 123)
-        admin = db.execute("SELECT * FROM usuarios WHERE id = 'admin'").fetchone()
-        if not admin:
-            db.execute("INSERT INTO usuarios VALUES ('admin', '123', 'admin', 'Administrador', '000000')")
-        db.commit()
+# Coleções (Equivalente às tabelas do SQLite)
+usuarios = db['usuarios']
+solicitacoes = db['solicitacoes']
 
-# Inicializa o banco automaticamente ao subir o app
-with app.app_context():
-    init_db()
+# Criar o Administrador padrão se o banco estiver vazio
+if not usuarios.find_one({"id": "admin"}):
+    usuarios.insert_one({
+        "id": "admin",
+        "senha": "123",
+        "role": "admin",
+        "nome": "Administrador",
+        "tag": "000000"
+    })
 
-# 3. ROTAS DE ACESSO E LOGIN
+# --- ROTAS DE ACESSO ---
 @app.route('/')
 def index():
     return redirect(url_for('login'))
@@ -44,24 +35,21 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        usuario = request.form.get('usuario')
+        user_id = request.form.get('usuario')
         senha = request.form.get('senha')
-        with get_db() as db:
-            user = db.execute("SELECT * FROM usuarios WHERE id = ?", (usuario,)).fetchone()
-            
-            # Verificação de senha convertendo para string para evitar erros
-            if user and str(user['senha']) == str(senha):
-                session.clear()
-                session['usuario_id'] = user['id']
-                session['nome'] = user['nome']
-                session['role'] = user['role']
-                session['tag'] = user['tag']
-                
-                if user['role'] == 'admin':
-                    return redirect(url_for('tela_aprovar'))
-                return redirect(url_for('tela_solicitar'))
+        user = usuarios.find_one({"id": user_id})
         
-        return "Erro: Credenciais inválidas. <a href='/login'>Tentar novamente</a>"
+        if user and str(user['senha']) == str(senha):
+            session.clear()
+            session['usuario_id'] = user['id']
+            session['nome'] = user['nome']
+            session['role'] = user['role']
+            session['tag'] = user['tag']
+            
+            if user['role'] == 'admin':
+                return redirect(url_for('tela_aprovar'))
+            return redirect(url_for('tela_solicitar'))
+    
     return render_template('login.html')
 
 @app.route('/logout')
@@ -69,61 +57,59 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# 4. ÁREA DO ADMINISTRADOR
+# --- ÁREA DO ADMINISTRADOR ---
 @app.route('/usuarios')
 def gerenciar_usuarios():
-    # Verificação rigorosa de segurança
     if session.get('role') != 'admin':
-        return f"Acesso Negado! Logue como admin. Seu nível: {session.get('role')}", 403
-        
-    with get_db() as db:
-        usuarios = db.execute("SELECT * FROM usuarios").fetchall()
-    return render_template('usuarios.html', usuarios=usuarios)
+        return "Acesso Negado", 403
+    
+    # Busca todos os usuários e converte para lista
+    lista_users = list(usuarios.find())
+    return render_template('usuarios.html', usuarios=lista_users)
 
 @app.route('/cadastrar_usuario', methods=['POST'])
 def cadastrar_usuario():
     if session.get('role') != 'admin': return "Negado", 403
     
-    uid = request.form.get('user_id')
-    nome = request.form.get('nome')
-    pw = request.form.get('senha')
-    tg = request.form.get('tag', '').upper()
-
-    with get_db() as db:
-        try:
-            db.execute("INSERT INTO usuarios (id, nome, senha, tag, role) VALUES (?, ?, ?, ?, 'professor')",
-                       (uid, nome, pw, tg))
-            db.commit()
-        except sqlite3.IntegrityError:
-            return "Erro: Este login já existe. <a href='/usuarios'>Voltar</a>"
-            
+    novo_user = {
+        "id": request.form.get('user_id'),
+        "nome": request.form.get('nome'),
+        "senha": request.form.get('senha'),
+        "tag": request.form.get('tag', '').upper(),
+        "role": "professor"
+    }
+    
+    # Verifica se já existe para não duplicar
+    if not usuarios.find_one({"id": novo_user['id']}):
+        usuarios.insert_one(novo_user)
+        
     return redirect(url_for('gerenciar_usuarios'))
 
 @app.route('/excluir_usuario/<user_id>')
 def excluir_usuario(user_id):
     if session.get('role') != 'admin': return "Negado", 403
     if user_id != 'admin':
-        with get_db() as db:
-            db.execute("DELETE FROM usuarios WHERE id = ?", (user_id,))
-            db.commit()
+        usuarios.delete_one({"id": user_id})
     return redirect(url_for('gerenciar_usuarios'))
 
 @app.route('/admin')
 def tela_aprovar():
     if session.get('role') != 'admin': return redirect(url_for('login'))
-    with get_db() as db:
-        solics = db.execute("SELECT * FROM solicitacoes").fetchall()
-    return render_template('aprovar.html', solicitacoes=solics)
+    # Busca todas as solicitações
+    lista_solics = list(solicitacoes.find())
+    return render_template('aprovar.html', solicitacoes=lista_solics)
 
-@app.route('/decisao/<int:solic_id>/<string:status>')
+@app.route('/decisao/<solic_id>/<status>')
 def decidir(solic_id, status):
     if session.get('role') == 'admin':
-        with get_db() as db:
-            db.execute("UPDATE solicitacoes SET status = ? WHERE id = ?", (status, solic_id))
-            db.commit()
+        # No MongoDB usamos o ObjectId para localizar o registro único
+        solicitacoes.update_one(
+            {"_id": ObjectId(solic_id)}, 
+            {"$set": {"status": status}}
+        )
     return redirect(url_for('tela_aprovar'))
 
-# 5. ÁREA DO PROFESSOR E API
+# --- ÁREA DO PROFESSOR ---
 @app.route('/solicitar')
 def tela_solicitar():
     if not session.get('usuario_id'): return redirect(url_for('login'))
@@ -132,25 +118,39 @@ def tela_solicitar():
 @app.route('/enviar_solicitacao', methods=['POST'])
 def enviar_solicitacao():
     if not session.get('usuario_id'): return redirect(url_for('login'))
-    with get_db() as db:
-        db.execute(
-            "INSERT INTO solicitacoes (professor_tag, professor_nome, lab, data, periodo, status) VALUES (?, ?, ?, ?, ?, 'Pendente')",
-            (session.get('tag'), session.get('nome'), request.form.get('lab'), 
-             request.form.get('data'), request.form.get('periodo')))
-        db.commit()
+    
+    nova_solic = {
+        "professor_tag": session.get('tag'),
+        "professor_nome": session.get('nome'),
+        "lab": request.form.get('lab'),
+        "data": request.form.get('data'),
+        "periodo": request.form.get('periodo'),
+        "status": "Pendente"
+    }
+    solicitacoes.insert_one(nova_solic)
     return redirect(url_for('tela_solicitar'))
 
+# --- API PARA O ESP32 ---
 @app.route('/api/rfid', methods=['POST'])
 def verificar_acesso():
     dados = request.get_json()
+    if not dados or 'tag' not in dados:
+        return jsonify({"access": False, "name": "Erro"}), 400
+        
     tag_id = dados.get('tag', '').upper()
-    with get_db() as db:
-        # Verifica se há agendamento aprovado para a tag
-        agendamento = db.execute(
-            "SELECT professor_nome FROM solicitacoes WHERE professor_tag = ? AND status = 'Aprovado'", 
-            (tag_id,)).fetchone()
-        if agendamento:
-            return jsonify({"access": True, "name": agendamento['professor_nome']}), 200
+    
+    # Busca se existe algum agendamento APROVADO para esta TAG
+    agendamento = solicitacoes.find_one({
+        "professor_tag": tag_id, 
+        "status": "Aprovado"
+    })
+    
+    if agendamento:
+        return jsonify({
+            "access": True, 
+            "name": agendamento['professor_nome']
+        }), 200
+            
     return jsonify({"access": False, "name": "Negado"}), 401
 
 if __name__ == '__main__':
