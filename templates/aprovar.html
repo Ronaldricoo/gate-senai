@@ -18,8 +18,8 @@
             <td>{{ s.data }} - {{ s.periodo }}</td>
             <td><b>{{ s.status }}</b></td>
             <td>
-                <a href="/decisao/{{ s.id }}/Aprovado">Aprovar</a> |
-                <a href="/decisao/{{ s.id }}/Reprovado">Reprovar</a>
+                <a href="/decisao/{{ solic._id }}/Aprovado">Aprovar</a>
+                <a href="/decisao/{{ solic._id }}/Reprovado">Reprovar</a>
             </td>
         </tr>
         {% endfor %}
