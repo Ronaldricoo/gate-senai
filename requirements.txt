@@ -44,3 +44,5 @@ Werkzeug==3.1.7
 yarl==1.23.0
 Flask
 gunicorn
+pymongo
+dnspython
