@@ -5,12 +5,11 @@ from bson.objectid import ObjectId
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-# Chave fixa para manter a sessão ativa mesmo após o Render reiniciar
 app.secret_key = 'chave_mestra_senai_9168'
 
 # --- CONFIGURAÇÃO DO MONGODB ---
-# Substitua SUA_SENHA_AQUI pela sua senha real do MongoDB Atlas
-MONGO_URI = "mongodb+srv://ronald:SUA_SENHA_AQUI@gate.cof2msq.mongodb.net/?appName=gate"
+# Usando a sua senha senai123
+MONGO_URI = "mongodb+srv://ronald:senai123@gate.cof2msq.mongodb.net/?appName=gate"
 
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
@@ -18,12 +17,8 @@ try:
     client.admin.command('ping')
     print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
     db = client['gate_senai']
-except Exception as e:
-    print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
-    db = None
-
-# Coleções (Equivalente às tabelas)
-if db is not None:
+    
+    # Define as coleções APENAS se a conexão funcionar
     usuarios = db['usuarios']
     solicitacoes = db['solicitacoes']
 
@@ -36,6 +31,9 @@ if db is not None:
             "nome": "Administrador",
             "tag": "000000"
         })
+except Exception as e:
+    print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
+    db = None
 
 # --- ROTAS DE ACESSO ---
 @app.route('/')
@@ -47,18 +45,21 @@ def login():
     if request.method == 'POST':
         user_id = request.form.get('usuario')
         senha = request.form.get('senha')
-        user = usuarios.find_one({"id": user_id})
         
-        if user and str(user['senha']) == str(senha):
-            session.clear()
-            session['usuario_id'] = user['id']
-            session['nome'] = user['nome']
-            session['role'] = user['role']
-            session['tag'] = user['tag']
-            
-            if user['role'] == 'admin':
-                return redirect(url_for('tela_aprovar'))
-            return redirect(url_for('tela_solicitar'))
+        if db is not None:
+            user = usuarios.find_one({"id": user_id})
+            if user and str(user['senha']) == str(senha):
+                session.clear()
+                session['usuario_id'] = user['id']
+                session['nome'] = user['nome']
+                session['role'] = user['role']
+                session['tag'] = user['tag']
+                
+                if user['role'] == 'admin':
+                    return redirect(url_for('tela_aprovar'))
+                return redirect(url_for('tela_solicitar'))
+        
+        return "Erro: Falha no login ou banco inacessível. <a href='/login'>Voltar</a>"
     
     return render_template('login.html')
 
@@ -125,7 +126,6 @@ def tela_solicitar():
 def enviar_solicitacao():
     if not session.get('usuario_id'): return redirect(url_for('login'))
     
-    # Ajuste de Horário para Mato Grosso (UTC-4)
     hora_mt = datetime.utcnow() - timedelta(hours=4)
     
     nova_solic = {
@@ -148,8 +148,6 @@ def verificar_acesso():
         return jsonify({"access": False, "name": "Erro"}), 400
         
     tag_id = dados.get('tag', '').upper()
-    
-    # Busca agendamento APROVADO para esta TAG
     agendamento = solicitacoes.find_one({
         "professor_tag": tag_id, 
         "status": "Aprovado"
