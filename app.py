@@ -16,12 +16,9 @@ try:
     print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
     db = client['gate_senai']
     
-    usuarios = db['usuarios']
-    solicitacoes = db['solicitacoes']
-
-    # Criar admin padrão se não existir
-    if not usuarios.find_one({"id": "admin"}):
-        usuarios.insert_one({
+    # Criar admin padrão se não existir na coleção usuarios
+    if not db.usuarios.find_one({"id": "admin"}):
+        db.usuarios.insert_one({
             "id": "admin",
             "senha": "123",
             "role": "admin",
@@ -44,7 +41,6 @@ def login():
         senha = request.form.get('senha')
         
         if db is not None:
-            # Busca o usuário no MongoDB
             user = db.usuarios.find_one({"id": user_id})
             
             if user and str(user['senha']) == str(senha):
@@ -54,11 +50,12 @@ def login():
                 session['role'] = user['role']
                 session['tag'] = user['tag']
                 
+                # CORREÇÃO AQUI: Redireciona para o NOME da função
                 if user['role'] == 'admin':
-                    return redirect(url_for('tela_aprovar'))
+                    return redirect(url_for('admin_painel'))
                 return redirect(url_for('tela_solicitar'))
         
-        return "Erro: Falha no login ou banco inacessível. <a href='/login'>Voltar</a>"
+        return "Erro: Usuário/Senha incorretos ou banco fora do ar. <a href='/login'>Voltar</a>"
     
     return render_template('login.html')
 
@@ -68,6 +65,17 @@ def logout():
     return redirect(url_for('login'))
 
 # --- ÁREA DO ADMINISTRADOR ---
+
+# Mudamos o nome da função para 'admin_painel' e a rota para '/admin'
+@app.route('/admin')
+def admin_painel():
+    if session.get('role') != 'admin': 
+        return redirect(url_for('login'))
+    
+    # Busca todas as solicitações para o admin aprovar
+    lista_solics = list(db.solicitacoes.find())
+    return render_template('aprovar.html', solicitacoes=lista_solics)
+
 @app.route('/usuarios')
 def gerenciar_usuarios():
     if session.get('role') != 'admin':
@@ -93,19 +101,6 @@ def cadastrar_usuario():
         
     return redirect(url_for('gerenciar_usuarios'))
 
-@app.route('/excluir_usuario/<user_id>')
-def excluir_usuario(user_id):
-    if session.get('role') != 'admin': return "Negado", 403
-    if user_id != 'admin':
-        db.usuarios.delete_one({"id": user_id})
-    return redirect(url_for('gerenciar_usuarios'))
-
-@app.route('/admin')
-def tela_aprovar():
-    if session.get('role') != 'admin': return redirect(url_for('login'))
-    lista_solics = list(db.solicitacoes.find())
-    return render_template('aprovar.html', solicitacoes=lista_solics)
-
 @app.route('/decisao/<solic_id>/<status>')
 def decidir(solic_id, status):
     if session.get('role') == 'admin':
@@ -113,7 +108,7 @@ def decidir(solic_id, status):
             {"_id": ObjectId(solic_id)}, 
             {"$set": {"status": status}}
         )
-    return redirect(url_for('tela_aprovar'))
+    return redirect(url_for('admin_painel'))
 
 # --- ÁREA DO PROFESSOR ---
 @app.route('/solicitar')
@@ -125,7 +120,6 @@ def tela_solicitar():
 def enviar_solicitacao():
     if not session.get('usuario_id'): return redirect(url_for('login'))
     
-    # Horário de Mato Grosso corrigido para Python moderno
     hora_mt = datetime.now(timezone.utc) - timedelta(hours=4)
     
     nova_solic = {
@@ -154,10 +148,7 @@ def verificar_acesso():
     })
     
     if agendamento:
-        return jsonify({
-            "access": True, 
-            "name": agendamento['professor_nome']
-        }), 200
+        return jsonify({"access": True, "name": agendamento['professor_nome']}), 200
             
     return jsonify({"access": False, "name": "Negado"}), 401
 
