@@ -16,7 +16,7 @@ try:
     print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
     db = client['gate_senai']
     
-    # Criar admin padrão se não existir na coleção usuarios
+    # Criar admin padrão se não existir
     if not db.usuarios.find_one({"id": "admin"}):
         db.usuarios.insert_one({
             "id": "admin",
@@ -29,7 +29,8 @@ except Exception as e:
     print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
     db = None
 
-# --- ROTAS DE ACESSO ---
+# --- ROTAS ---
+
 @app.route('/')
 def index():
     return redirect(url_for('login'))
@@ -42,7 +43,6 @@ def login():
         
         if db is not None:
             user = db.usuarios.find_one({"id": user_id})
-            
             if user and str(user['senha']) == str(senha):
                 session.clear()
                 session['usuario_id'] = user['id']
@@ -50,39 +50,33 @@ def login():
                 session['role'] = user['role']
                 session['tag'] = user['tag']
                 
-                # CORREÇÃO AQUI: Redireciona para o NOME da função
+                # Se for admin, vai para a rota /admin
                 if user['role'] == 'admin':
-                    return redirect(url_for('admin_painel'))
-                return redirect(url_for('tela_solicitar'))
+                    return redirect(url_for('rota_admin'))
+                return redirect(url_for('rota_solicitar'))
         
-        return "Erro: Usuário/Senha incorretos ou banco fora do ar. <a href='/login'>Voltar</a>"
-    
+        return "Erro: Usuário ou senha incorretos. <a href='/login'>Voltar</a>"
     return render_template('login.html')
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-# --- ÁREA DO ADMINISTRADOR ---
-
-# Mudamos o nome da função para 'admin_painel' e a rota para '/admin'
+# ROTA DO PAINEL DE APROVAÇÃO (ADMIN)
 @app.route('/admin')
-def admin_painel():
-    if session.get('role') != 'admin': 
+def rota_admin():
+    if session.get('role') != 'admin':
         return redirect(url_for('login'))
     
-    # Busca todas as solicitações para o admin aprovar
-    lista_solics = list(db.solicitacoes.find())
-    return render_template('aprovar.html', solicitacoes=lista_solics)
+    # Busca solicitações no banco
+    solics = list(db.solicitacoes.find())
+    # IMPORTANTE: Renderiza o arquivo 'aprovar.html' que está na sua pasta templates
+    return render_template('aprovar.html', solicitacoes=solics)
 
+# ROTA DE GERENCIAR USUÁRIOS
 @app.route('/usuarios')
-def gerenciar_usuarios():
+def rota_usuarios():
     if session.get('role') != 'admin':
         return "Acesso Negado", 403
     
-    lista_users = list(db.usuarios.find())
-    return render_template('usuarios.html', usuarios=lista_users)
+    users = list(db.usuarios.find())
+    return render_template('usuarios.html', usuarios=users)
 
 @app.route('/cadastrar_usuario', methods=['POST'])
 def cadastrar_usuario():
@@ -95,11 +89,8 @@ def cadastrar_usuario():
         "tag": request.form.get('tag', '').upper(),
         "role": "professor"
     }
-    
-    if not db.usuarios.find_one({"id": novo_user['id']}):
-        db.usuarios.insert_one(novo_user)
-        
-    return redirect(url_for('gerenciar_usuarios'))
+    db.usuarios.insert_one(novo_user)
+    return redirect(url_for('rota_usuarios'))
 
 @app.route('/decisao/<solic_id>/<status>')
 def decidir(solic_id, status):
@@ -108,12 +99,13 @@ def decidir(solic_id, status):
             {"_id": ObjectId(solic_id)}, 
             {"$set": {"status": status}}
         )
-    return redirect(url_for('admin_painel'))
+    return redirect(url_for('rota_admin'))
 
-# --- ÁREA DO PROFESSOR ---
+# ROTA DO PROFESSOR (SOLICITAR)
 @app.route('/solicitar')
-def tela_solicitar():
-    if not session.get('usuario_id'): return redirect(url_for('login'))
+def rota_solicitar():
+    if not session.get('usuario_id'):
+        return redirect(url_for('login'))
     return render_template('solicitar.html', labs=["Informática", "Redes", "Robótica"])
 
 @app.route('/enviar_solicitacao', methods=['POST'])
@@ -132,9 +124,14 @@ def enviar_solicitacao():
         "criado_em": hora_mt.strftime('%d/%m/%Y %H:%M')
     }
     db.solicitacoes.insert_one(nova_solic)
-    return redirect(url_for('tela_solicitar'))
+    return redirect(url_for('rota_solicitar'))
 
-# --- API PARA O ESP32 ---
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+# API PARA O ESP32
 @app.route('/api/rfid', methods=['POST'])
 def verificar_acesso():
     dados = request.get_json()
