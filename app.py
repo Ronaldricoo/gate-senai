@@ -2,30 +2,40 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
-# Chave fixa para manter você logado mesmo se o Render reiniciar
+# Chave fixa para manter a sessão ativa mesmo após o Render reiniciar
 app.secret_key = 'chave_mestra_senai_9168'
 
 # --- CONFIGURAÇÃO DO MONGODB ---
-# Lembre-se de trocar <db_password> pela sua senha real!
-MONGO_URI = "mongodb+srv://ronald:<db_password>@gate.cof2msq.mongodb.net/?appName=gate"
-client = MongoClient(MONGO_URI)
-db = client['gate_senai'] # Nome do banco de dados no Atlas
+# Substitua SUA_SENHA_AQUI pela sua senha real do MongoDB Atlas
+MONGO_URI = "mongodb+srv://ronald:SUA_SENHA_AQUI@gate.cof2msq.mongodb.net/?appName=gate"
 
-# Coleções (Equivalente às tabelas do SQLite)
-usuarios = db['usuarios']
-solicitacoes = db['solicitacoes']
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # Tenta dar um "ping" no banco para ver se responde
+    client.admin.command('ping')
+    print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
+    db = client['gate_senai']
+except Exception as e:
+    print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
+    db = None
 
-# Criar o Administrador padrão se o banco estiver vazio
-if not usuarios.find_one({"id": "admin"}):
-    usuarios.insert_one({
-        "id": "admin",
-        "senha": "123",
-        "role": "admin",
-        "nome": "Administrador",
-        "tag": "000000"
-    })
+# Coleções (Equivalente às tabelas)
+if db is not None:
+    usuarios = db['usuarios']
+    solicitacoes = db['solicitacoes']
+
+    # Criar admin padrão se não existir
+    if not usuarios.find_one({"id": "admin"}):
+        usuarios.insert_one({
+            "id": "admin",
+            "senha": "123",
+            "role": "admin",
+            "nome": "Administrador",
+            "tag": "000000"
+        })
 
 # --- ROTAS DE ACESSO ---
 @app.route('/')
@@ -63,7 +73,6 @@ def gerenciar_usuarios():
     if session.get('role') != 'admin':
         return "Acesso Negado", 403
     
-    # Busca todos os usuários e converte para lista
     lista_users = list(usuarios.find())
     return render_template('usuarios.html', usuarios=lista_users)
 
@@ -79,7 +88,6 @@ def cadastrar_usuario():
         "role": "professor"
     }
     
-    # Verifica se já existe para não duplicar
     if not usuarios.find_one({"id": novo_user['id']}):
         usuarios.insert_one(novo_user)
         
@@ -95,14 +103,12 @@ def excluir_usuario(user_id):
 @app.route('/admin')
 def tela_aprovar():
     if session.get('role') != 'admin': return redirect(url_for('login'))
-    # Busca todas as solicitações
     lista_solics = list(solicitacoes.find())
     return render_template('aprovar.html', solicitacoes=lista_solics)
 
 @app.route('/decisao/<solic_id>/<status>')
 def decidir(solic_id, status):
     if session.get('role') == 'admin':
-        # No MongoDB usamos o ObjectId para localizar o registro único
         solicitacoes.update_one(
             {"_id": ObjectId(solic_id)}, 
             {"$set": {"status": status}}
@@ -119,13 +125,17 @@ def tela_solicitar():
 def enviar_solicitacao():
     if not session.get('usuario_id'): return redirect(url_for('login'))
     
+    # Ajuste de Horário para Mato Grosso (UTC-4)
+    hora_mt = datetime.utcnow() - timedelta(hours=4)
+    
     nova_solic = {
         "professor_tag": session.get('tag'),
         "professor_nome": session.get('nome'),
         "lab": request.form.get('lab'),
         "data": request.form.get('data'),
         "periodo": request.form.get('periodo'),
-        "status": "Pendente"
+        "status": "Pendente",
+        "criado_em": hora_mt.strftime('%d/%m/%Y %H:%M')
     }
     solicitacoes.insert_one(nova_solic)
     return redirect(url_for('tela_solicitar'))
@@ -139,7 +149,7 @@ def verificar_acesso():
         
     tag_id = dados.get('tag', '').upper()
     
-    # Busca se existe algum agendamento APROVADO para esta TAG
+    # Busca agendamento APROVADO para esta TAG
     agendamento = solicitacoes.find_one({
         "professor_tag": tag_id, 
         "status": "Aprovado"
