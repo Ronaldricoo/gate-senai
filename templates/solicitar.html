@@ -1,24 +1,176 @@
 <!DOCTYPE html>
-<html>
-<head><title>Solicitar Lab</title></head>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitar Laboratório | Gate SENAI</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #004494;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h2 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .user-info {
+            background: #e9f2ff;
+            color: var(--secondary-color);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 10px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        form {
+            text-align: left;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        select, input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--text-color);
+            background-color: #fff;
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        select:focus, input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+        }
+
+        .btn-submit {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .logout-link {
+            display: inline-block;
+            margin-top: 25px;
+            text-decoration: none;
+            color: #888;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .logout-link:hover {
+            color: #dc3545;
+        }
+
+        /* Estilo para telas pequenas */
+        @media (max-width: 480px) {
+            .container {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
 <body>
-    <h2>Olá, Professor {{ nome }} (Tag: {{ tag }})</h2>
-    <form action="/enviar_solicitacao" method="post">
-        Laboratório:
-        <select name="lab">
-            {% for lab in labs %}
-                <option value="{{ lab }}">{{ lab }}</option>
-            {% endfor %}
-        </select><br><br>
-        Data: <input type="date" name="data" required><br><br>
-        Período:
-        <select name="periodo">
-            <option value="Manhã">Manhã</option>
-            <option value="Tarde">Tarde</option>
-            <option value="Noite">Noite</option>
-        </select><br><br>
-        <button type="submit">Enviar Solicitação</button>
-    </form>
-    <br><a href="/logout">Sair</a>
+
+    <div class="container">
+        <div class="header">
+            <h2>Solicitar Laboratório</h2>
+            <div class="user-info">
+                Prof. {{ session['nome'] }} | Tag: {{ session['tag'] }}
+            </div>
+        </div>
+
+        <form action="/enviar_solicitacao" method="post">
+            <div class="form-group">
+                <label for="lab">Escolha o Laboratório</label>
+                <select name="lab" id="lab" required>
+                    <option value="" disabled selected>Selecione um laboratório...</option>
+                    {% for lab in labs %}
+                        <option value="{{ lab }}">{{ lab }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="data">Data da Reserva</label>
+                <input type="date" name="data" id="data" required>
+            </div>
+
+            <div class="form-group">
+                <label for="periodo">Período</label>
+                <select name="periodo" id="periodo" required>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-submit">Enviar Solicitação</button>
+        </form>
+
+        <a href="/logout" class="logout-link">Sair do sistema</a>
+    </div>
+
 </body>
 </html>
