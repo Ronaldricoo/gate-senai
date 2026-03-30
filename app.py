@@ -16,7 +16,6 @@ try:
     print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
     db = client['gate_senai']
     
-    # Garante que o admin exista
     if not db.usuarios.find_one({"id": "admin"}):
         db.usuarios.insert_one({
             "id": "admin",
@@ -28,8 +27,6 @@ try:
 except Exception as e:
     print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
     db = None
-
-# --- ROTAS ---
 
 @app.route('/')
 def index():
@@ -50,19 +47,20 @@ def login():
                 session['role'] = user['role']
                 session['tag'] = user['tag']
                 
+                # ALTERADO: Agora redireciona para a função tela_aprovar
                 if user['role'] == 'admin':
-                    return redirect(url_for('rota_admin'))
+                    return redirect(url_for('tela_aprovar'))
                 return redirect(url_for('rota_solicitar'))
         
-        return "Erro: Usuário ou senha incorretos. <a href='/login'>Voltar</a>"
+        return "Erro: login incorreto. <a href='/login'>Voltar</a>"
     return render_template('login.html')
 
-@app.route('/admin')
-def rota_admin():
+# ALTERADO: Rota agora é /aprovar
+@app.route('/aprovar')
+def tela_aprovar():
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
     
-    # Busca solicitações e converte para lista
     solics = list(db.solicitacoes.find())
     return render_template('aprovar.html', solicitacoes=solics)
 
@@ -75,9 +73,9 @@ def decidir(solic_id, status):
                 {"$set": {"status": status}}
             )
         except Exception as e:
-            print(f"Erro ao atualizar: {e}")
+            print(f"Erro: {e}")
             
-    return redirect(url_for('rota_admin'))
+    return redirect(url_for('tela_aprovar'))
 
 @app.route('/usuarios')
 def rota_usuarios():
@@ -101,8 +99,7 @@ def cadastrar_usuario():
 
 @app.route('/solicitar')
 def rota_solicitar():
-    if not session.get('usuario_id'):
-        return redirect(url_for('login'))
+    if not session.get('usuario_id'): return redirect(url_for('login'))
     return render_template('solicitar.html', labs=["Informática", "Redes", "Robótica"])
 
 @app.route('/enviar_solicitacao', methods=['POST'])
