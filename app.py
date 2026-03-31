@@ -16,6 +16,7 @@ try:
     print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
     db = client['gate_senai']
     
+    # Garante que o admin padrão exista
     if not db.usuarios.find_one({"id": "admin"}):
         db.usuarios.insert_one({
             "id": "admin",
@@ -27,6 +28,8 @@ try:
 except Exception as e:
     print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
     db = None
+
+# --- ROTAS DE NAVEGAÇÃO ---
 
 @app.route('/')
 def index():
@@ -47,7 +50,6 @@ def login():
                 session['role'] = user['role']
                 session['tag'] = user['tag']
                 
-                # ALTERADO: Agora redireciona para a função tela_aprovar
                 if user['role'] == 'admin':
                     return redirect(url_for('tela_aprovar'))
                 return redirect(url_for('rota_solicitar'))
@@ -55,7 +57,6 @@ def login():
         return "Erro: login incorreto. <a href='/login'>Voltar</a>"
     return render_template('login.html')
 
-# ALTERADO: Rota agora é /aprovar
 @app.route('/aprovar')
 def tela_aprovar():
     if session.get('role') != 'admin':
@@ -73,9 +74,11 @@ def decidir(solic_id, status):
                 {"$set": {"status": status}}
             )
         except Exception as e:
-            print(f"Erro: {e}")
+            print(f"Erro ao atualizar status: {e}")
             
     return redirect(url_for('tela_aprovar'))
+
+# --- GESTÃO DE USUÁRIOS ---
 
 @app.route('/usuarios')
 def rota_usuarios():
@@ -97,6 +100,19 @@ def cadastrar_usuario():
     db.usuarios.insert_one(novo_user)
     return redirect(url_for('rota_usuarios'))
 
+@app.route('/excluir_usuario/<user_id>')
+def excluir_usuario(user_id):
+    if session.get('role') != 'admin': 
+        return "Acesso Negado", 403
+    
+    # Proteção para não excluir o próprio admin
+    if user_id != 'admin':
+        db.usuarios.delete_one({"id": user_id})
+    
+    return redirect(url_for('rota_usuarios'))
+
+# --- SOLICITAÇÕES DOS PROFESSORES ---
+
 @app.route('/solicitar')
 def rota_solicitar():
     if not session.get('usuario_id'): return redirect(url_for('login'))
@@ -105,12 +121,15 @@ def rota_solicitar():
 @app.route('/enviar_solicitacao', methods=['POST'])
 def enviar_solicitacao():
     if not session.get('usuario_id'): return redirect(url_for('login'))
+    
+    # Registro do log de criação no fuso MT
     hora_mt = datetime.now(timezone.utc) - timedelta(hours=4)
+    
     nova_solic = {
         "professor_tag": session.get('tag'),
         "professor_nome": session.get('nome'),
         "lab": request.form.get('lab'),
-        "data": request.form.get('data'),
+        "data": request.form.get('data'), # O HTML salva como AAAA-MM-DD
         "periodo": request.form.get('periodo'),
         "status": "Pendente",
         "criado_em": hora_mt.strftime('%d/%m/%Y %H:%M')
@@ -118,34 +137,42 @@ def enviar_solicitacao():
     db.solicitacoes.insert_one(nova_solic)
     return redirect(url_for('rota_solicitar'))
 
-@app.route('/excluir_usuario/<user_id>')
-def excluir_usuario(user_id):
-    if session.get('role') != 'admin': 
-        return "Acesso Negado", 403
-    
-    # Impede que o admin principal seja excluído por acidente
-    if user_id != 'admin':
-        db.usuarios.delete_one({"id": user_id})
-    
-    # Importante: redirecionar de volta para a função certa
-    return redirect(url_for('rota_usuarios'))
-    
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+# --- API PARA O ESP32 (COM VALIDAÇÃO DE DATA) ---
 
 @app.route('/api/rfid', methods=['POST'])
 def verificar_acesso():
     dados = request.get_json()
     if not dados or 'tag' not in dados:
         return jsonify({"access": False, "name": "Erro"}), 400
+        
     tag_id = dados.get('tag', '').upper()
-    agendamento = db.solicitacoes.find_one({"professor_tag": tag_id, "status": "Aprovado"})
+    
+    # Obtém a data de hoje formatada exatamente como o input date do HTML (AAAA-MM-DD)
+    # Ajustado para o fuso horário de Mato Grosso (UTC-4)
+    hoje_mt = (datetime.now(timezone.utc) - timedelta(hours=4)).strftime('%Y-%m-%d')
+    
+    # Busca agendamento aprovado para a TAG e para o DIA DE HOJE
+    agendamento = db.solicitacoes.find_one({
+        "professor_tag": tag_id, 
+        "status": "Aprovado",
+        "data": hoje_mt
+    })
+    
     if agendamento:
-        return jsonify({"access": True, "name": agendamento['professor_nome']}), 200
+        return jsonify({
+            "access": True, 
+            "name": agendamento['professor_nome'],
+            "lab": agendamento['lab']
+        }), 200
+        
     return jsonify({"access": False, "name": "Negado"}), 401
 
 if __name__ == '__main__':
+    # Configuração para deploy no Render ou execução local
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
