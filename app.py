@@ -118,6 +118,18 @@ def enviar_solicitacao():
     db.solicitacoes.insert_one(nova_solic)
     return redirect(url_for('rota_solicitar'))
 
+@app.route('/excluir_usuario/<user_id>')
+def excluir_usuario(user_id):
+    if session.get('role') != 'admin': 
+        return "Acesso Negado", 403
+    
+    # Impede que o admin principal seja excluído por acidente
+    if user_id != 'admin':
+        db.usuarios.delete_one({"id": user_id})
+    
+    # Importante: redirecionar de volta para a função certa
+    return redirect(url_for('rota_usuarios'))
+    
 @app.route('/logout')
 def logout():
     session.clear()
