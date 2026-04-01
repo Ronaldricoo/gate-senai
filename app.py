@@ -13,10 +13,9 @@ MONGO_URI = "mongodb+srv://ronald:senai123@gate.cof2msq.mongodb.net/?appName=gat
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     client.admin.command('ping')
-    print(">>> SUCESSO: Conectado ao MongoDB Atlas! <<<")
+    print(">>> CONECTADO AO MONGODB ATLAS <<<")
     db = client['gate_senai']
     
-    # Garante que o admin padrão exista
     if not db.usuarios.find_one({"id": "admin"}):
         db.usuarios.insert_one({
             "id": "admin",
@@ -26,10 +25,10 @@ try:
             "tag": "000000"
         })
 except Exception as e:
-    print(f">>> ERRO CRÍTICO DE CONEXÃO: {e} <<<")
+    print(f">>> ERRO NA CONEXÃO: {e} <<<")
     db = None
 
-# --- ROTAS DE NAVEGAÇÃO ---
+# --- ROTAS DE LOGIN E SESSÃO ---
 
 @app.route('/')
 def index():
@@ -40,7 +39,6 @@ def login():
     if request.method == 'POST':
         user_id = request.form.get('usuario')
         senha = request.form.get('senha')
-        
         if db is not None:
             user = db.usuarios.find_one({"id": user_id})
             if user and str(user['senha']) == str(senha):
@@ -49,19 +47,23 @@ def login():
                 session['nome'] = user['nome']
                 session['role'] = user['role']
                 session['tag'] = user['tag']
-                
                 if user['role'] == 'admin':
                     return redirect(url_for('tela_aprovar'))
                 return redirect(url_for('rota_solicitar'))
-        
         return "Erro: login incorreto. <a href='/login'>Voltar</a>"
     return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+# --- PAINEL DO ADMINISTRADOR (APROVAÇÕES) ---
 
 @app.route('/aprovar')
 def tela_aprovar():
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    
     solics = list(db.solicitacoes.find())
     return render_template('aprovar.html', solicitacoes=solics)
 
@@ -74,11 +76,10 @@ def decidir(solic_id, status):
                 {"$set": {"status": status}}
             )
         except Exception as e:
-            print(f"Erro ao atualizar status: {e}")
-            
+            print(f"Erro na decisão: {e}")
     return redirect(url_for('tela_aprovar'))
 
-# --- GESTÃO DE USUÁRIOS ---
+# --- GERENCIAMENTO DE USUÁRIOS ---
 
 @app.route('/usuarios')
 def rota_usuarios():
@@ -90,89 +91,92 @@ def rota_usuarios():
 @app.route('/cadastrar_usuario', methods=['POST'])
 def cadastrar_usuario():
     if session.get('role') != 'admin': return "Negado", 403
-    novo_user = {
+    db.usuarios.insert_one({
         "id": request.form.get('user_id'),
         "nome": request.form.get('nome'),
         "senha": request.form.get('senha'),
         "tag": request.form.get('tag', '').upper(),
         "role": "professor"
-    }
-    db.usuarios.insert_one(novo_user)
+    })
     return redirect(url_for('rota_usuarios'))
 
 @app.route('/excluir_usuario/<user_id>')
 def excluir_usuario(user_id):
-    if session.get('role') != 'admin': 
-        return "Acesso Negado", 403
-    
-    # Proteção para não excluir o próprio admin
-    if user_id != 'admin':
+    if session.get('role') == 'admin' and user_id != 'admin':
         db.usuarios.delete_one({"id": user_id})
-    
     return redirect(url_for('rota_usuarios'))
 
 # --- SOLICITAÇÕES DOS PROFESSORES ---
 
 @app.route('/solicitar')
 def rota_solicitar():
-    if not session.get('usuario_id'): return redirect(url_for('login'))
+    if not session.get('usuario_id'):
+        return redirect(url_for('login'))
     return render_template('solicitar.html', labs=["Informática", "Redes", "Robótica"])
 
 @app.route('/enviar_solicitacao', methods=['POST'])
 def enviar_solicitacao():
     if not session.get('usuario_id'): return redirect(url_for('login'))
-    
-    # Registro do log de criação no fuso MT
     hora_mt = datetime.now(timezone.utc) - timedelta(hours=4)
-    
-    nova_solic = {
+    db.solicitacoes.insert_one({
         "professor_tag": session.get('tag'),
         "professor_nome": session.get('nome'),
         "lab": request.form.get('lab'),
-        "data": request.form.get('data'), # O HTML salva como AAAA-MM-DD
+        "data": request.form.get('data'),
         "periodo": request.form.get('periodo'),
         "status": "Pendente",
         "criado_em": hora_mt.strftime('%d/%m/%Y %H:%M')
-    }
-    db.solicitacoes.insert_one(nova_solic)
+    })
     return redirect(url_for('rota_solicitar'))
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-# --- API PARA O ESP32 (COM VALIDAÇÃO DE DATA) ---
+# --- API PARA O ESP32 (SEGURANÇA DUPLA) ---
 
 @app.route('/api/rfid', methods=['POST'])
 def verificar_acesso():
     dados = request.get_json()
     if not dados or 'tag' not in dados:
         return jsonify({"access": False, "name": "Erro"}), 400
-        
+    
     tag_id = dados.get('tag', '').upper()
     
-    # Obtém a data de hoje formatada exatamente como o input date do HTML (AAAA-MM-DD)
-    # Ajustado para o fuso horário de Mato Grosso (UTC-4)
-    hoje_mt = (datetime.now(timezone.utc) - timedelta(hours=4)).strftime('%Y-%m-%d')
-    
-    # Busca agendamento aprovado para a TAG e para o DIA DE HOJE
+    # 1. VALIDAÇÃO DE USUÁRIO ATIVO: O dono da tag ainda existe?
+    usuario_ativo = db.usuarios.find_one({"tag": tag_id})
+    if not usuario_ativo:
+        return jsonify({"access": False, "name": "Usuario Inexistente"}), 401
+
+    # 2. Obter data e hora atual em Mato Grosso (UTC-4)
+    agora_mt = datetime.now(timezone.utc) - timedelta(hours=4)
+    hoje_str = agora_mt.strftime('%Y-%m-%d')
+    hora_atual = agora_mt.strftime('%H:%M')
+
+    # 3. Determinar o período atual (Regras SENAI)
+    periodo_atual = None
+    if "07:00" <= hora_atual <= "12:00":
+        periodo_atual = "Manhã"
+    elif "13:00" <= hora_atual <= "18:00":
+        periodo_atual = "Tarde"
+    elif "18:20" <= hora_atual <= "22:30":
+        periodo_atual = "Noite"
+
+    if not periodo_atual:
+        return jsonify({"access": False, "name": "Fora de Horario"}), 401
+
+    # 4. VALIDAÇÃO DE RESERVA: Existe agendamento aprovado para este período?
     agendamento = db.solicitacoes.find_one({
-        "professor_tag": tag_id, 
+        "professor_tag": tag_id,
         "status": "Aprovado",
-        "data": hoje_mt
+        "data": hoje_str,
+        "periodo": periodo_atual
     })
-    
+
     if agendamento:
         return jsonify({
             "access": True, 
-            "name": agendamento['professor_nome'],
-            "lab": agendamento['lab']
+            "name": usuario_ativo['nome']
         }), 200
-        
-    return jsonify({"access": False, "name": "Negado"}), 401
+            
+    return jsonify({"access": False, "name": "Sem Reserva"}), 401
 
 if __name__ == '__main__':
-    # Configuração para deploy no Render ou execução local
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
