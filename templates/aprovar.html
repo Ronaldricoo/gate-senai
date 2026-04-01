@@ -2,55 +2,126 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Painel de Aprovação - Gate SENAI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprovações | Gate SENAI</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; }
-        table { width: 90%; margin: 20px auto; border-collapse: collapse; background: white; }
-        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
-        th { background: #0056b3; color: white; }
-        .btn { padding: 8px 12px; text-decoration: none; border-radius: 4px; color: white; font-weight: bold; }
-        .btn-aprovar { background: #28a745; }
-        .btn-reprovar { background: #dc3545; }
-        .menu { margin: 20px; }
-        .menu a { margin: 10px; text-decoration: none; color: #0056b3; font-weight: bold; }
+        :root {
+            --primary: #0056b3;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --bg: #f4f7f6;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .header-panel { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 { color: var(--primary); margin: 0; font-size: 22px; }
+
+        .nav-buttons a {
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: 0.3s;
+        }
+
+        .btn-users { background: var(--primary); color: white; }
+        .btn-logout { background: #666; color: white; }
+
+        .table-card { 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            overflow: hidden; 
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; padding: 15px; text-align: left; color: #444; border-bottom: 2px solid #eee; }
+        td { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; }
+
+        .badge { 
+            padding: 5px 10px; 
+            border-radius: 15px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            text-transform: uppercase;
+        }
+        .Pendente { background: #fff3cd; color: #856404; }
+        .Aprovado { background: #d4edda; color: #155724; }
+        .Reprovado { background: #f8d7da; color: #721c24; }
+
+        .action-btn { 
+            text-decoration: none; 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            color: white; 
+            font-size: 12px; 
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .btn-ok { background: var(--success); }
+        .btn-no { background: var(--danger); }
+
+        tr:hover { background-color: #f9f9f9; }
     </style>
 </head>
 <body>
-    <h1>Solicitações de Acesso (Mato Grosso)</h1>
-    
-    <div class="menu">
-        <a href="/usuarios">👥 Usuários</a> | 
-        <a href="/logout">🚪 Sair</a>
+
+<div class="container">
+    <div class="header-panel">
+        <h1>Gate SENAI: Painel de Aprovação</h1>
+        <div class="nav-buttons">
+            <a href="/usuarios" class="btn-users">👥 Usuários</a>
+            <a href="/logout" class="btn-logout">Sair</a>
+        </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Professor</th>
-                <th>Laboratório</th>
-                <th>Data/Período</th>
-                <th>Status</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for solic in solicitacoes %}
-            <tr>
-                <td>{{ solic.professor_nome }}</td>
-                <td>{{ solic.lab }}</td>
-                <td>{{ solic.data }} ({{ solic.periodo }})</td>
-                <td><strong>{{ solic.status }}</strong></td>
-                <td>
-                    {% if solic.status == 'Pendente' %}
-                        <a href="/decisao/{{ solic['_id'] }}/Aprovado" class="btn btn-aprovar">Aprovar</a>
-                        <a href="/decisao/{{ solic['_id'] }}/Reprovado" class="btn btn-reprovar">Reprovar</a>
-                    {% else %}
-                        Finalizado
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Professor</th>
+                    <th>Laboratório</th>
+                    <th>Data/Período</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for solic in solicitacoes %}
+                <tr>
+                    <td><strong>{{ solic.professor_nome }}</strong></td>
+                    <td>{{ solic.lab }}</td>
+                    <td>{{ solic.data }} <br> <small>{{ solic.periodo }}</small></td>
+                    <td><span class="badge {{ solic.status }}">{{ solic.status }}</span></td>
+                    <td>
+                        {% if solic.status == 'Pendente' %}
+                        <a href="/decisao/{{ solic['_id'] }}/Aprovado" class="btn-ok action-btn">Aprovar</a>
+                        <a href="/decisao/{{ solic['_id'] }}/Reprovado" class="btn-no action-btn">Reprovar</a>
+                        {% else %}
+                        <span style="color: #bbb;">Concluído</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 </body>
 </html>
