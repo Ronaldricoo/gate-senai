@@ -153,7 +153,7 @@ def verificar_acesso():
     periodo_atual = None
     if "07:00" <= hora_atual <= "12:00":
         periodo_atual = "Manhã"
-    elif "13:00" <= hora_atual <= "18:00":
+    elif "13:00" <= hora_atual <= "18:20":
         periodo_atual = "Tarde"
     elif "18:20" <= hora_atual <= "22:30":
         periodo_atual = "Noite"
