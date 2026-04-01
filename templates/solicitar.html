@@ -3,231 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciar Usuários | Gate SENAI</title>
+    <title>Solicitar Laboratório | Gate SENAI</title>
     <style>
         :root {
             --primary-color: #0056b3;
             --secondary-color: #004494;
-            --danger-color: #dc3545;
-            --success-color: #28a745;
             --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --text-color: #333;
+            --card-bg: #ffffff;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: var(--bg-gradient);
+            min-height: 100vh;
             margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
-            color: #333;
         }
 
         .container {
-            max-width: 900px;
-            margin: 0 auto;
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
         }
 
-        header {
-            text-align: center;
+        .header {
             margin-bottom: 30px;
         }
 
-        header h1 {
+        .header h2 {
             color: var(--primary-color);
             margin: 0;
+            font-size: 24px;
         }
 
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-
-        .card h2 {
-            margin-top: 0;
-            font-size: 20px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
+        .user-info {
+            background: #e9f2ff;
             color: var(--secondary-color);
-        }
-
-        /* Grid para o formulário */
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-
-        .form-group input {
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 14px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
+            margin-top: 15px;
             display: inline-block;
-            text-align: center;
-        }
-
-        .btn-add {
-            background-color: var(--success-color);
-            color: white;
-            grid-column: 1 / -1; /* Ocupa a linha toda em telas pequenas */
-            margin-top: 10px;
-        }
-
-        .btn-add:hover { background-color: #218838; }
-
-        /* Estilização da Tabela */
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-        }
-
-        th {
-            background-color: #f8f9fa;
-            color: var(--secondary-color);
             font-weight: 600;
         }
 
-        .role-badge {
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            background: #e9ecef;
-        }
-
-        .btn-delete {
-            background-color: #fff;
-            color: var(--danger-color);
-            border: 1px solid var(--danger-color);
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-
-        .btn-delete:hover {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .nav-links {
-            text-align: center;
+        form {
+            text-align: left;
             margin-top: 20px;
         }
 
-        .nav-links a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 600;
-            margin: 0 10px;
+        .form-group {
+            margin-bottom: 20px;
         }
 
-        @media (min-width: 600px) {
-            .btn-add { width: auto; justify-self: end; padding: 12px 30px; }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        select, input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--text-color);
+            background-color: #fff;
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        select:focus, input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+        }
+
+        .btn-submit {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .nav-links {
+            margin-top: 25px;
+            font-size: 14px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #888;
+            transition: color 0.3s;
+            font-weight: 600;
+        }
+
+        .nav-links a:hover {
+            color: #dc3545;
+        }
+
+        @media (max-width: 480px) {
+            .container { padding: 25px; }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <header>
-            <h1>Gate SENAI</h1>
-            <p>Gerenciamento de Usuários e Professores</p>
-        </header>
-
-        <div class="card">
-            <h2>Novo Usuário</h2>
-            <form action="/cadastrar_usuario" method="POST" class="form-grid">
-                <div class="form-group">
-                    <label>ID/Usuário</label>
-                    <input type="text" name="user_id" placeholder="Ex: p_silva" required>
-                </div>
-                <div class="form-group">
-                    <label>Nome Completo</label>
-                    <input type="text" name="nome" placeholder="Nome do Professor" required>
-                </div>
-                <div class="form-group">
-                    <label>Senha</label>
-                    <input type="password" name="senha" placeholder="Senha inicial" required>
-                </div>
-                <div class="form-group">
-                    <label>Tag RFID (Opcional)</label>
-                    <input type="text" name="tag" placeholder="Ex: ABC12345">
-                </div>
-                <button type="submit" class="btn btn-add">Cadastrar Professor</button>
-            </form>
-        </div>
-
-        <div class="card">
-            <h2>Usuários Cadastrados</h2>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Usuário</th>
-                            <th>Nome</th>
-                            <th>Tag</th>
-                            <th>Nível</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in usuarios %}
-                        <tr>
-                            <td><strong>{{ user.id }}</strong></td>
-                            <td>{{ user.nome }}</td>
-                            <td><code>{{ user.tag or '---' }}</code></td>
-                            <td><span class="role-badge">{{ user.role }}</span></td>
-                            <td>
-                                {% if user.id != 'admin' %}
-                                <a href="/excluir_usuario/{{ user.id }}" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir?')">Excluir</a>
-                                {% else %}
-                                <small style="color: #ccc;">Protegido</small>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="header">
+            <h2>Solicitar Laboratório</h2>
+            <div class="user-info">
+                Prof. {{ session['nome'] }} | Tag: {{ session['tag'] }}
             </div>
         </div>
 
+        <form action="/enviar_solicitacao" method="POST">
+            <div class="form-group">
+                <label for="lab">Laboratório</label>
+                <select name="lab" id="lab" required>
+                    <option value="" disabled selected>Selecione o laboratório...</option>
+                    {% for lab in labs %}
+                        <option value="{{ lab }}">{{ lab }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="data">Data da Reserva</label>
+                <input type="date" name="data" id="data" required>
+            </div>
+
+            <div class="form-group">
+                <label for="periodo">Período</label>
+                <select name="periodo" id="periodo" required>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-submit">Enviar Solicitação</button>
+        </form>
+
         <div class="nav-links">
-            <a href="/aprovar">⬅ Voltar ao Painel</a> | 
-            <a href="/logout">🚪 Sair</a>
+            <a href="/logout">Sair do Sistema</a>
         </div>
     </div>
 
