@@ -2,54 +2,234 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Gerenciar Usuários</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Usuários | Gate SENAI</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #004494;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            color: var(--secondary-color);
+        }
+
+        /* Grid para o formulário */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-add {
+            background-color: var(--success-color);
+            color: white;
+            grid-column: 1 / -1; /* Ocupa a linha toda em telas pequenas */
+            margin-top: 10px;
+        }
+
+        .btn-add:hover { background-color: #218838; }
+
+        /* Estilização da Tabela */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .role-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #e9ecef;
+        }
+
+        .btn-delete {
+            background-color: #fff;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .btn-delete:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .nav-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 10px;
+        }
+
+        @media (min-width: 600px) {
+            .btn-add { width: auto; justify-self: end; padding: 12px 30px; }
+        }
+    </style>
 </head>
 <body>
-    <h2>Gerenciamento de Professores e TAGs</h2>
-    <nav>
-        <a href="/admin">🔙 Voltar para Aprovações</a> | 
-        <a href="/logout">Sair</a>
-    </nav>
-    <hr>
 
-    <h3>Cadastrar Novo Professor</h3>
-    <form action="/cadastrar_usuario" method="post">
-        Login: <input type="text" name="user_id" placeholder="ex: ronaldo" required>
-        Nome: <input type="text" name="nome" placeholder="Nome Completo" required>
-        Senha: <input type="password" name="senha" required>
-        TAG: <input type="text" name="tag" placeholder="ID da Tag" required>
-        <button type="submit">Cadastrar</button>
-    </form>
+    <div class="container">
+        <header>
+            <h1>Gate SENAI</h1>
+            <p>Gerenciamento de Usuários e Professores</p>
+        </header>
 
-    <hr>
-    <h3>Usuários Cadastrados</h3>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Login (ID)</th>
-                <th>Nome</th>
-                <th>TAG</th>
-                <th>Nível</th>
-                <th>Ação</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user in usuarios %}
-            <tr>
-                <td>{{ user.id }}</td>
-                <td>{{ user.nome }}</td>
-                <td><code>{{ user.tag }}</code></td>
-                <td>{{ user.role }}</td>
-                <td>
-                    {% if user.id != 'admin' %}
-                        <a href="/excluir_usuario/{{ user.id }}" onclick="return confirm('Tem certeza que deseja excluir?')">🗑️ Excluir</a>
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <div class="card">
+            <h2>Novo Usuário</h2>
+            <form action="/cadastrar_usuario" method="POST" class="form-grid">
+                <div class="form-group">
+                    <label>ID/Usuário</label>
+                    <input type="text" name="user_id" placeholder="Ex: p_silva" required>
+                </div>
+                <div class="form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" name="nome" placeholder="Nome do Professor" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" name="senha" placeholder="Senha inicial" required>
+                </div>
+                <div class="form-group">
+                    <label>Tag RFID (Opcional)</label>
+                    <input type="text" name="tag" placeholder="Ex: ABC12345">
+                </div>
+                <button type="submit" class="btn btn-add">Cadastrar Professor</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Usuários Cadastrados</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Nome</th>
+                            <th>Tag</th>
+                            <th>Nível</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in usuarios %}
+                        <tr>
+                            <td><strong>{{ user.id }}</strong></td>
+                            <td>{{ user.nome }}</td>
+                            <td><code>{{ user.tag or '---' }}</code></td>
+                            <td><span class="role-badge">{{ user.role }}</span></td>
+                            <td>
+                                {% if user.id != 'admin' %}
+                                <a href="/excluir_usuario/{{ user.id }}" class="btn btn-delete" onclick="return confirm('Tem certeza que deseja excluir?')">Excluir</a>
+                                {% else %}
+                                <small style="color: #ccc;">Protegido</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/aprovar">⬅ Voltar ao Painel</a> | 
+            <a href="/logout">🚪 Sair</a>
+        </div>
+    </div>
+
 </body>
 </html>
