@@ -46,3 +46,4 @@ Flask
 gunicorn
 pymongo
 dnspython
+flask-mail
