@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aprovações | Gate SENAI</title>
+    <title>Painel de Controle | Gate SENAI</title>
     <style>
         :root {
             --primary: #0056b3;
@@ -14,12 +14,9 @@
         }
 
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1100px; margin: 0 auto; }
         
         .header-panel { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
             background: white; 
             padding: 20px; 
             border-radius: 10px; 
@@ -27,7 +24,23 @@
             margin-bottom: 20px;
         }
 
-        h1 { color: var(--primary); margin: 0; font-size: 22px; }
+        .top-row { display: flex; justify-content: space-between; align-items: center; }
+        h1 { color: var(--primary); margin: 0; font-size: 24px; }
+
+        /* Filtros */
+        .filter-bar { margin-top: 20px; display: flex; gap: 10px; }
+        .filter-btn {
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: #eee;
+            color: #555;
+            font-size: 14px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .filter-btn.active { background: var(--primary); color: white; }
+        .filter-btn:hover { background: #ddd; }
 
         .nav-buttons a {
             text-decoration: none;
@@ -36,10 +49,9 @@
             font-weight: bold;
             font-size: 14px;
             margin-left: 10px;
-            transition: 0.3s;
         }
-
         .btn-users { background: var(--primary); color: white; }
+        .btn-relatorio { background: #6f42c1; color: white; } /* Cor roxa para destaque */
         .btn-logout { background: #666; color: white; }
 
         .table-card { 
@@ -56,7 +68,7 @@
         .badge { 
             padding: 5px 10px; 
             border-radius: 15px; 
-            font-size: 12px; 
+            font-size: 11px; 
             font-weight: bold; 
             text-transform: uppercase;
         }
@@ -71,22 +83,30 @@
             color: white; 
             font-size: 12px; 
             font-weight: bold;
-            margin-right: 5px;
         }
-        .btn-ok { background: var(--success); }
+        .btn-ok { background: var(--success); margin-right: 5px; }
         .btn-no { background: var(--danger); }
 
-        tr:hover { background-color: #f9f9f9; }
+        tr:hover { background-color: #fcfcfc; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-panel">
-        <h1>Gate SENAI: Painel de Aprovação</h1>
-        <div class="nav-buttons">
-            <a href="/usuarios" class="btn-users">👥 Usuários</a>
-            <a href="/logout" class="btn-logout">Sair</a>
+        <div class="top-row">
+            <h1>Gate SENAI: Gestão de Laboratórios</h1>
+            <div class="nav-buttons">
+                <a href="/relatorio" class="btn-relatorio">📊 Relatório Carga Horária</a>
+                <a href="/usuarios" class="btn-users">👥 Usuários</a>
+                <a href="/logout" class="btn-logout">Sair</a>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <a href="/aprovar?filtro=Pendentes" class="filter-btn {% if filtro_atual == 'Pendentes' %}active{% endif %}">Solicitações Pendentes</a>
+            <a href="/aprovar?filtro=Futuros" class="filter-btn {% if filtro_atual == 'Futuros' %}active{% endif %}">Aprovados (Futuro)</a>
+            <a href="/aprovar?filtro=Passados" class="filter-btn {% if filtro_atual == 'Passados' %}active{% endif %}">Histórico Geral</a>
         </div>
     </div>
 
@@ -96,7 +116,8 @@
                 <tr>
                     <th>Professor</th>
                     <th>Laboratório</th>
-                    <th>Data/Período</th>
+                    <th>Data</th>
+                    <th>Período</th>
                     <th>Status</th>
                     <th>Ações</th>
                 </tr>
@@ -105,16 +126,23 @@
                 {% for solic in solicitacoes %}
                 <tr>
                     <td><strong>{{ solic.professor_nome }}</strong></td>
-                    <td>{{ solic.lab }}</td>
-                    <td>{{ solic.data }} <br> <small>{{ solic.periodo }}</small></td>
+                    <td><span style="color: var(--primary); font-weight: bold;">{{ solic.lab }}</span></td>
+                    <td>{{ solic.data }}</td>
+                    <td>{{ solic.periodo }}</td>
                     <td><span class="badge {{ solic.status }}">{{ solic.status }}</span></td>
                     <td>
                         {% if solic.status == 'Pendente' %}
-                        <a href="/decisao/{{ solic['_id'] }}/Aprovado" class="btn-ok action-btn">Aprovar</a>
-                        <a href="/decisao/{{ solic['_id'] }}/Reprovado" class="btn-no action-btn">Reprovar</a>
+                            <a href="/decisao/{{ solic['_id'] }}/Aprovado" class="btn-ok action-btn">Aprovar</a>
+                            <a href="/decisao/{{ solic['_id'] }}/Reprovado" class="btn-no action-btn">Reprovar</a>
                         {% else %}
-                        <span style="color: #bbb;">Concluído</span>
+                            <span style="color: #bbb; font-style: italic;">Sem ações</span>
                         {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #999;">
+                        Nenhuma solicitação encontrada para este filtro.
                     </td>
                 </tr>
                 {% endfor %}
